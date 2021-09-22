@@ -82,7 +82,7 @@ module.exports.builder = yargs =>
         .options({
             // Only added as an argument for testing. It's never necessary in
             // the CLI itself; just set DEBUG_PROJECT_CREATION in the env.
-            debugVenia: {
+            testScaffolding: {
                 boolean: true,
                 hidden: true,
                 default: !!process.env.DEBUG_PROJECT_CREATION
@@ -94,14 +94,10 @@ module.exports.handler = async function buildpackCli(argv) {
     const repoConfig = {
         cache: argv.cache
     };
-    if (argv.debugVenia) {
+    if (argv.testScaffolding) {
         repoConfig.cache = false;
         repoConfig.local = true;
     }
-
-    // throw new Error(
-    //     `uh DEBUG_PROJECT_CREATION is "${process.env.DEBUG_PROJECT_CREATION}"`
-    // );
 
     const templateRepo = new TemplateRepository(repoConfig);
 

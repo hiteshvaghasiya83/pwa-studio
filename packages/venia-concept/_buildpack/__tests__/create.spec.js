@@ -172,9 +172,7 @@ test.skip('outputs package-lock or yarn.lock based on npmClient', async () => {
     });
 });
 
-describe('when DEBUG_PROJECT_CREATION is set', () => {
-    const old = process.env.DEBUG_PROJECT_CREATION;
-
+describe('when testScaffolding is set', () => {
     const mockWorkspaceResponse = JSON.stringify({
         foo: { location: '/repo/packages/me' },
         '@magento/create-pwa': { location: 'packages/create-pwa' },
@@ -187,7 +185,6 @@ describe('when DEBUG_PROJECT_CREATION is set', () => {
     let pkg;
 
     beforeEach(() => {
-        process.env.DEBUG_PROJECT_CREATION = 1;
         pkg = {
             name: 'foo',
             author: 'bar',
@@ -239,10 +236,6 @@ describe('when DEBUG_PROJECT_CREATION is set', () => {
         });
     });
 
-    afterEach(() => {
-        process.env.DEBUG_PROJECT_CREATION = old;
-    });
-
     describe('scaffolds using the current state of the other packages as dependencies, instead of the published release', () => {
         const fileScheme = 'file://';
 
@@ -252,7 +245,8 @@ describe('when DEBUG_PROJECT_CREATION is set', () => {
             await runCreate(fs, {
                 name: 'foo',
                 author: 'bar',
-                npmClient: 'npm'
+                npmClient: 'npm',
+                testScaffolding: true
             });
 
             return fs.readJsonSync('/project/package.json');

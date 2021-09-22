@@ -4,7 +4,6 @@ jest.mock('../Utilities/createProject');
 jest.mock('../cli/create-env-file');
 jest.mock('../Utilities/TemplateRepository');
 const yargs = require('yargs');
-const { shellSync, shell } = require('execa');
 const createProject = require('../Utilities/createProject');
 const TemplateRepository = require('../Utilities/TemplateRepository');
 const fse = require('fs-extra');
@@ -65,14 +64,14 @@ test('locates package with TemplateRepository', async () => {
     expect(repo.findTemplateDir).toHaveBeenCalledWith('@magento/venia-concept');
 });
 
-test('configures TemplateRepository to local (Venia) only if debugVenia arg is true', async () => {
+test('configures TemplateRepository to local only if --debug-scaffolding is set', async () => {
     repo.findTemplateDir.mockResolvedValueOnce('/path/to/venia');
     await expect(
         createProjectCliBuilder.handler({
             name: 'goo',
             template: '@magento/venia',
             directory: '/project',
-            debugVenia: true
+            testScaffolding: true
         })
     ).resolves.not.toThrow();
     expect(createProject).toHaveBeenCalledWith(

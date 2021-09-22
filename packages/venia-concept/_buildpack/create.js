@@ -147,7 +147,7 @@ async function createProjectFromVenia({ fs, tasks, options, sampleBackends }) {
                     pkg.scripts[name] = toPackageScript(scriptsToInsert[name]);
                 });
 
-                if (process.env.DEBUG_PROJECT_CREATION) {
+                if (options.testScaffolding) {
                     setDebugDependencies(pkg, fs);
                 }
 
@@ -170,7 +170,7 @@ async function createProjectFromVenia({ fs, tasks, options, sampleBackends }) {
 
 function setDebugDependencies(pkg, fs) {
     console.warn(
-        'DEBUG_PROJECT_CREATION: Debugging Venia _buildpack/create.js, so we will assume we are inside the pwa-studio repo and replace those package dependency declarations with local file paths.'
+        'testScaffolding: Debugging Venia _buildpack/create.js, so we will assume we are inside the pwa-studio repo and replace those package dependency declarations with local file paths.'
     );
 
     const { execSync } = require('child_process');
@@ -190,7 +190,7 @@ function setDebugDependencies(pkg, fs) {
         );
     } catch (e) {
         throw new Error(
-            `DEBUG_PROJECT_CREATION: Could not parse output of '${yarnWorkspaceInfoCmd}:\n${workspaceInfo}. Please check your version of yarn is v1.22.4+.\n${
+            `testScaffolding: Could not parse output of '${yarnWorkspaceInfoCmd}:\n${workspaceInfo}. Please check your version of yarn is v1.22.4+.\n${
                 e.stack
             }`
         );
@@ -240,7 +240,7 @@ function setDebugDependencies(pkg, fs) {
             continue;
         }
 
-        console.warn(`DEBUG_PROJECT_CREATION: Packing ${name} for local usage`);
+        console.warn(`testScaffolding: Packing ${name} for local usage`);
 
         // We want to use local versions of these packages, which normally would
         // just be a `yarn link`. But symlinks and direct file URL pointers
@@ -262,7 +262,7 @@ function setDebugDependencies(pkg, fs) {
             filename = getNewestTarballIn(packageDir);
         } catch (e) {
             throw new Error(
-                `DEBUG_PROJECT_CREATION: npm pack in ${name} package failed.\nOutput was:\n${packOutput}\n\nError was: ${
+                `testScaffolding: npm pack in ${name} package failed.\nOutput was:\n${packOutput}\n\nError was: ${
                     e.stack
                 }`
             );
@@ -292,7 +292,7 @@ function setDebugDependencies(pkg, fs) {
 
     if (Object.keys(overridden).length > 0) {
         console.warn(
-            'DEBUG_PROJECT_CREATION: Resolved the following packages via local tarball',
+            'testScaffolding: Resolved the following packages via local tarball',
             JSON.stringify(overridden, null, 2)
         );
 
