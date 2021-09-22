@@ -1,13 +1,10 @@
-const { resolve, relative } = require('path');
-const fetch = require('node-fetch');
-const os = require('os');
-const tar = require('tar');
+const { resolve } = require('path');
 const camelspace = require('camelspace');
 const fse = require('fs-extra');
-const findCacheDir = require('find-cache-dir');
 const prettyLogger = require('../util/pretty-logger');
 const chalk = require('chalk');
 const createProject = require('../Utilities/createProject');
+const TemplateRepository = require('../Utilities/TemplateRepository');
 const { handler: createEnvFile } = require('./create-env-file');
 const execa = require('execa');
 const sampleBackends = require('../../sampleBackends.json');
@@ -82,133 +79,36 @@ module.exports.builder = yargs =>
                 default: true
             }
         })
+        .options({
+            // Only added as an argument for testing. It's never necessary in
+            // the CLI itself; just set DEBUG_PROJECT_CREATION in the env.
+            debugVenia: {
+                boolean: true,
+                hidden: true,
+                default: !!process.env.DEBUG_PROJECT_CREATION
+            }
+        })
         .help();
 
 module.exports.handler = async function buildpackCli(argv) {
-    function getCacheDir() {
-        const cacheDir = findCacheDir({
-            name: '@magento/pwa-buildpack',
-            cwd: __dirname,
-            create: true
-        });
-        return cacheDir && resolve(cacheDir, 'scaffold-templates');
+    const repoConfig = {
+        cache: argv.cache
+    };
+    if (argv.debugVenia) {
+        repoConfig.cache = false;
+        repoConfig.local = true;
     }
 
-    async function getPackageFromCache(packageName) {
-        const cacheDir = getCacheDir();
-        const packageDir = resolve(cacheDir, packageName);
-        // NPM extracts a tarball to './package'
-        const packageRoot = resolve(packageDir, 'package');
-        try {
-            if ((await fse.readdir(packageRoot)).includes('package.json')) {
-                prettyLogger.info(`Found ${packageName} template in cache`);
-                return packageRoot;
-            }
-        } catch (e) {
-            // Not cached.
-            return false;
-        }
-        return packageRoot;
-    }
+    // throw new Error(
+    //     `uh DEBUG_PROJECT_CREATION is "${process.env.DEBUG_PROJECT_CREATION}"`
+    // );
 
-    async function getPackageFromRegistry(packageName) {
-        const cacheDir = cache ? getCacheDir() : os.tmpdir();
-        const packageDir = resolve(cacheDir, packageName);
-        let tarballUrl;
-        try {
-            prettyLogger.info(`Finding ${packageName} tarball on NPM`);
-            tarballUrl = JSON.parse(
-                execa.shellSync(`npm view --json ${packageName}`, {
-                    encoding: 'utf-8'
-                }).stdout
-            ).dist.tarball;
-        } catch (e) {
-            throw new Error(
-                `Invalid template: could not get tarball url from npm: ${
-                    e.message
-                }`
-            );
-        }
-
-        let tarballStream;
-        try {
-            prettyLogger.info(`Downloading and unpacking ${tarballUrl}`);
-            tarballStream = (await fetch(tarballUrl)).body;
-        } catch (e) {
-            throw new Error(
-                `Invalid template: could not download tarball from NPM: ${
-                    e.message
-                }`
-            );
-        }
-
-        await fse.ensureDir(packageDir);
-        return new Promise((res, rej) => {
-            const untarStream = tar.extract({
-                cwd: packageDir
-            });
-            tarballStream.pipe(untarStream);
-            untarStream.on('finish', () => {
-                prettyLogger.info(`Unpacked ${packageName}`);
-                // NPM extracts a tarball to './package'
-                const packageRoot = resolve(packageDir, 'package');
-                res(packageRoot);
-            });
-            untarStream.on('error', rej);
-            tarballStream.on('error', rej);
-        });
-    }
-
-    async function makeDirFromDevPackage(packageName) {
-        // assume we are in pwa-studio repo
-        prettyLogger.warn(
-            `Env var DEBUG_PROJECT_CREATION=1. Bypassing cache and NPM registry.`
-        );
-        if (packageName !== '@magento/venia-concept') {
-            throw new Error(
-                `DEBUG_PROJECT_CREATION=1 is set, but scaffolding debug mode currently only works using "@magento/venia-concept" as the template. Supplied template name "${packageName}" is unsupported.`
-            );
-        }
-        const siblingPackagePath = resolve(__dirname, '../../../venia-concept');
-        prettyLogger.warn(
-            `Attempting to resolve "${packageName}" as a sibling package from ${relative(
-                process.cwd(),
-                siblingPackagePath
-            )}.`
-        );
-        return siblingPackagePath;
-    }
-
-    async function makeDirFromNpmPackage(packageName) {
-        let packageDir;
-        if (process.env.DEBUG_PROJECT_CREATION) {
-            return makeDirFromDevPackage(packageName);
-        }
-        if (!cache) {
-            prettyLogger.warn(`Bypassing cache to get "${packageName}"`);
-        } else {
-            packageDir = await getPackageFromCache(packageName);
-        }
-        return packageDir || getPackageFromRegistry(packageName);
-    }
-
-    async function findTemplateDir(templateName) {
-        try {
-            await fse.readdir(templateName);
-            prettyLogger.info(`Found ${templateName} directory`);
-            // if that succeeded, then...
-            return templateName;
-        } catch (e) {
-            return makeDirFromNpmPackage(templateName);
-        }
-    }
-
-    const cache = !process.env.DEBUG_PROJECT_CREATION && argv.cache;
+    const templateRepo = new TemplateRepository(repoConfig);
 
     const params = {
         ...argv,
         name: argv.name || argv.directory,
-        template: await findTemplateDir(argv.template)
+        template: await templateRepo.findTemplateDir(argv.template)
     };
     const { directory, name } = params;
     await fse.ensureDir(directory);
